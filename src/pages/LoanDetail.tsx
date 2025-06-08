@@ -148,11 +148,8 @@ export default function LoanDetail() {
         if (updatedLoan) {
           setLoan(updatedLoan);
         }
-        // Log para depuração
-        alert(`Status atualizado: ${result.status}`);
-        console.log('Status do empréstimo após updateLoan:', result.status);
       } else {
-        alert('Falha ao atualizar status do empréstimo!');
+        // alert('Falha ao atualizar status do empréstimo!');
       }
 
       // Gera recibo usando o UUID real do pagamento e valor pago confirmado atualizado
@@ -186,10 +183,10 @@ export default function LoanDetail() {
     };
     const result = await addReceipt(receipt);
     if (!result) {
-      alert('Erro ao gerar recibo! Verifique o console para detalhes.');
+      // alert('Erro ao gerar recibo! Verifique o console para detalhes.');
       console.error('Erro ao gerar recibo:', receipt);
     } else {
-      alert('Recibo gerado com sucesso!');
+      // alert('Recibo gerado com sucesso!');
     }
   };
 
@@ -199,11 +196,10 @@ export default function LoanDetail() {
     if (window.confirm('Tem certeza que deseja excluir este recibo? Esta ação não pode ser desfeita.')) {
       try {
         await deleteReceipt(receiptId); // Remove o recibo do banco de dados ou armazenamento local
-        // Não altere o estado do empréstimo, apenas recarregue os recibos se necessário
-        alert('Recibo excluído com sucesso!');
+        // alert('Recibo excluído com sucesso!');
       } catch (error) {
         console.error('Erro ao excluir recibo:', error);
-        alert('Erro ao excluir recibo. Tente novamente mais tarde.');
+        // alert('Erro ao excluir recibo. Tente novamente mais tarde.');
       }
     }
   };
