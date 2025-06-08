@@ -391,14 +391,13 @@ function mapClientFromDb(db: any): Client {
 function mapClientToDb(client: Omit<Client, 'id' | 'createdAt'>) {
   return {
     name: client.name,
-    email: client.email ?? '',
+    email: client.email || '',
     phone: client.phone,
-    cpf: client.cpf ?? '',
-    address: client.address ?? '',
-    city: client.city ?? '',
-    state: client.state ?? '',
-    zip_code: client.zipCode ?? '',
-    notes: client.notes ?? '',
+    cpf: client.cpf || '',
+    address: client.address || '',
+    city: client.city || '',
+    state: client.state || '',
+    notes: client.notes || '',
   };
 }
 // LOANS

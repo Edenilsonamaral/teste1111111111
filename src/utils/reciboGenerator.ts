@@ -33,13 +33,13 @@ export function gerarRecibo(data: ReciboData): string {
     ? `Parcelas pagas: ${parcelaAtual}/${totalParcelas}`
     : '';
 
+  // Monta o recibo, evitando linha em branco extra se não houver parcelasPagasInfo
   return `RECIBO DE PAGAMENTO - Doc Nº ${docNumero}
 
 Cliente: ${cliente}
 Vencimento: ${vencimento}
 Data de pagamento: ${format(dataPagamento, 'dd/MM/yyyy')}
-${parcelasPagasInfo}
-Pago confirmado: ${formatCurrency(pagoConfirmado)}
+${parcelasPagasInfo ? parcelasPagasInfo + '\n' : ''}Pago confirmado: ${formatCurrency(pagoConfirmado)}
 Valor pago hoje: ${formatCurrency(valorPagoHoje)}
 --------------------------
 

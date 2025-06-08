@@ -12,7 +12,6 @@ type ClientFormData = {
   address?: string;
   city?: string;
   state?: string;
-  zipCode?: string;
   notes?: string;
 };
 
@@ -34,10 +33,16 @@ export default function AddClient() {
       if (!phone.startsWith('55')) {
         phone = '55' + phone;
       }
-      // Adapta para o tipo esperado por addClient
+      // Garante que todos os campos opcionais do cliente sejam enviados como string, nunca undefined, evitando erro de tipo e erro 400 do Supabase.
       const clientToSave = {
-        ...data,
+        name: data.name,
         phone,
+        email: data.email || '',
+        cpf: data.cpf || '',
+        address: data.address || '',
+        city: data.city || '',
+        state: data.state || '',
+        notes: data.notes || '',
       };
       const newClient = await addClient(clientToSave);
       if (newClient) {
@@ -137,17 +142,6 @@ export default function AddClient() {
                 className="form-input"
                 maxLength={2}
                 {...register('state')}
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="zipCode" className="form-label">CEP</label>
-              <input
-                type="text"
-                id="zipCode"
-                className="form-input"
-                placeholder="00000-000"
-                {...register('zipCode')}
               />
             </div>
             

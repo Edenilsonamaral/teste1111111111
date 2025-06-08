@@ -18,22 +18,26 @@ export default function Dashboard() {
     // Total Recebido: soma todos os recibos
     const totalReceived = receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
 
-    // Saldo a Receber: soma dos empréstimos ativos, descontando recibos confirmados
-    const remainingBalance = loans
+    // Saldo a Receber: igual ao Reports
+    const pendingAmount = loans
       .filter(loan => loan.status === 'active')
       .reduce((sum, loan) => {
-        const paid = receipts.filter(r => r.loanId === loan.id).reduce((s, r) => s + (r.amount || 0), 0);
-        // Nunca deixa negativo
-        const saldo = loan.totalAmount - paid;
-        return sum + (saldo > 0 ? saldo : 0);
+        if (loan.paymentType === 'interest_only') {
+          const hasFull = loan.payments && loan.payments.some(p => p.type === 'full');
+          return sum + (hasFull ? 0 : loan.totalAmount);
+        } else {
+          const paid = receipts.filter(r => r.loanId === loan.id).reduce((s, r) => s + (r.amount || 0), 0);
+          const saldo = loan.totalAmount - paid;
+          return sum + (saldo > 0 ? saldo : 0);
+        }
       }, 0);
 
     return {
       clientCount: clients.length,
       activeLoans,
-      totalLoaned: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalLoaned),
-      totalReceived: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceived),
-      remainingBalance: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(remainingBalance),
+      totalLoaned,
+      totalReceived,
+      pendingAmount,
     };
   }, [clients, loans, receipts]);
 
@@ -61,14 +65,14 @@ export default function Dashboard() {
         />
         <StatCard 
           title="Total Emprestado" 
-          value={stats.totalLoaned} 
+          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalLoaned)} 
           icon={<TrendingUp size={24} />} 
           to="/reports"
           color="success"
         />
         <StatCard 
           title="Total Recebido" 
-          value={stats.totalReceived} 
+          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalReceived)} 
           icon={<Receipt size={24} />} 
           to="/receipts"
           color="info"
@@ -86,15 +90,15 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500">Total Emprestado</p>
-            <p className="text-xl font-semibold text-green-600">{stats.totalLoaned}</p>
+            <p className="text-xl font-semibold text-green-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalLoaned)}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500">Total Recebido</p>
-            <p className="text-xl font-semibold text-blue-600">{stats.totalReceived}</p>
+            <p className="text-xl font-semibold text-blue-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.totalReceived)}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500">Saldo a Receber</p>
-            <p className="text-xl font-semibold text-purple-600">{stats.remainingBalance}</p>
+            <p className="text-xl font-semibold text-purple-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.pendingAmount)}</p>
           </div>
         </div>
       </div>

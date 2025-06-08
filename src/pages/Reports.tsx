@@ -111,12 +111,18 @@ export default function Reports() {
   const pendingAmount = loans
     .filter(loan => loan.status === 'active')
     .reduce((sum, loan) => {
-      const paid = receipts
-        .filter(r => r.loanId === loan.id)
-        .reduce((s, r) => s + r.amount, 0);
-      // Nunca deixa negativo
-      const saldo = loan.totalAmount - paid;
-      return sum + (saldo > 0 ? saldo : 0);
+      if (loan.paymentType === 'interest_only') {
+        // Busca pagamentos do tipo 'full' na lista de pagamentos do empréstimo
+        const hasFull = loan.payments && loan.payments.some(p => p.type === 'full');
+        return sum + (hasFull ? 0 : loan.totalAmount);
+      } else {
+        const paid = receipts
+          .filter(r => r.loanId === loan.id)
+          .reduce((s, r) => s + r.amount, 0);
+        // Nunca deixa negativo
+        const saldo = loan.totalAmount - paid;
+        return sum + (saldo > 0 ? saldo : 0);
+      }
     }, 0);
   
   const activeLoans = loans.filter(loan => loan.status === 'active').length;

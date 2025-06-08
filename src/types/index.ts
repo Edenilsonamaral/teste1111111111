@@ -7,7 +7,6 @@ export interface Client {
   address: string;
   city: string;
   state: string;
-  zipCode: string;
   notes?: string;
   createdAt: string;
 }

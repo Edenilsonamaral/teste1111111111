@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS clients (
   address text NOT NULL,
   city text NOT NULL,
   state text NOT NULL,
-  zip_code text NOT NULL,
   notes text,
   created_at timestamptz DEFAULT now()
 );

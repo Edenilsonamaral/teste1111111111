@@ -9,7 +9,7 @@ import { gerarRecibo } from '../utils/reciboGenerator';
 export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { clients, loans, receipts, deleteReceipt, updateLoan, addReceipt, addPayment } = useLocalData();
+  const { clients, loans, receipts, payments, deleteReceipt, updateLoan, addReceipt, addPayment, refetchLoans } = useLocalData();
   
   const [client, setClient] = useState<Client | null>(null);
   const [loan, setLoan] = useState<Loan | null>(null);
@@ -48,7 +48,9 @@ export default function LoanDetail() {
             newStatus = 'active';
           }
         } else if (foundLoan.paymentType === 'interest_only') {
-          const hasFullPayment = foundLoan.payments?.some(p => p.type === 'full' && p.amount >= foundLoan.totalAmount);
+          // Busca pagamentos do contexto global para este empréstimo
+          const pagamentosDoEmprestimo = payments.filter(p => p.loanId === foundLoan.id);
+          const hasFullPayment = pagamentosDoEmprestimo.some(p => p.type === 'full' && p.amount >= foundLoan.totalAmount);
           if (hasFullPayment) {
             newStatus = 'completed';
           } else if (today > dueDate) {
@@ -114,36 +116,44 @@ export default function LoanDetail() {
       const updatedPayments = [...(loan.payments || []), savedPayment];
       let isCompleted = false;
       if (loan.paymentType === 'diario') {
-        // Corrige: considera recibos confirmados para status concluído
         const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
         const recibosPagos = receipts.filter(r => r.loanId === loan.id).length;
         const hasQuitacao = updatedPayments.some(p => p.type === 'full');
         isCompleted = hasQuitacao || (totalParcelas > 0 && recibosPagos >= totalParcelas);
       } else if (loan.paymentType === 'interest_only') {
-        // Se o pagamento for do tipo 'full' (Juros + Capital), conclui o empréstimo
-        isCompleted = savedPayment.type === 'full' || updatedPayments.some(p => p.type === 'full' && p.amount >= loan.totalAmount);
+        // Se houver qualquer pagamento do tipo 'full', conclui o empréstimo
+        isCompleted = updatedPayments.some(p => p.type === 'full');
+        // Garantia extra: se o pagamento salvo for 'full', já marca como concluído
+        if (savedPayment.type === 'full') {
+          isCompleted = true;
+        }
       } else {
         const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
-        const parcelasPagas = updatedPayments.length;
         const totalPago = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
-        isCompleted = (totalParcelas > 0 && parcelasPagas >= totalParcelas) || (totalPago >= loan.totalAmount);
+        isCompleted = (totalParcelas > 0 && updatedPayments.length >= totalParcelas) || (totalPago >= loan.totalAmount);
       }
-      // LOG: Verificando updateLoan status
-      console.log('DEBUG updateLoan:', {
-        id: loan.id,
-        status: isCompleted ? 'completed' : 'active',
-        installments: loan.installments,
-        installmentAmount: loan.installmentAmount,
-        updatedPayments,
-        loan,
-      });
+      // Atualiza status imediatamente após pagamento
       const result = await updateLoan(loan.id, {
         status: isCompleted ? 'completed' : 'active',
         installments: loan.installments,
         installmentAmount: loan.installmentAmount,
       });
-      console.log('DEBUG retorno updateLoan:', result);
-      if (result) setLoan(result); // Atualiza o estado local imediatamente
+      if (result) {
+        setLoan(result); // Atualiza o estado local imediatamente
+        if (typeof refetchLoans === 'function') {
+          await refetchLoans();
+        }
+        // Força recarregamento do empréstimo atualizado
+        const updatedLoan = loans.find(l => l.id === loan.id);
+        if (updatedLoan) {
+          setLoan(updatedLoan);
+        }
+        // Log para depuração
+        alert(`Status atualizado: ${result.status}`);
+        console.log('Status do empréstimo após updateLoan:', result.status);
+      } else {
+        alert('Falha ao atualizar status do empréstimo!');
+      }
 
       // Gera recibo usando o UUID real do pagamento e valor pago confirmado atualizado
       const totalPagoConfirmado = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -392,7 +402,7 @@ export default function LoanDetail() {
               </div>
               <div>
                 <span className="text-gray-500">Vencimento:</span>
-                <p className="font-medium">{loan.dueDate ? format(new Date(loan.dueDate), 'dd/MM/yyyy') : '-'}</p>
+                <p className="font-medium">{loan.dueDate ? format(new Date(loan.dueDate + 'T00:00:00'), 'dd/MM/yyyy') : '-'}</p>
               </div>
             </div>
             <div>
@@ -420,6 +430,19 @@ export default function LoanDetail() {
               <span className="text-gray-500">Parcelas:</span>
               <p className="font-medium">
                 {(() => {
+                  if (loan.paymentType === 'diario' && loan.payments && loan.payments.length > 0) {
+                    // Agrupa pagamentos por valor
+                    const pagamentosPorValor: Record<string, number> = {};
+                    loan.payments.forEach(p => {
+                      const valor = p.amount.toFixed(2);
+                      pagamentosPorValor[valor] = (pagamentosPorValor[valor] || 0) + 1;
+                    });
+                    // Exibe agrupado, ex: '5 x R$ 10,00'
+                    return Object.entries(pagamentosPorValor)
+                      .map(([valor, qtd]) => `${qtd} x ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(valor))}`)
+                      .join(' + ');
+                  }
+                  // Padrão para outras modalidades
                   const qtdParcelas = loan.installments || loan.numberOfInstallments;
                   let valorParcela = loan.installmentAmount;
                   if ((!valorParcela || valorParcela === 0) && qtdParcelas) {
@@ -460,56 +483,6 @@ export default function LoanDetail() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Payment History */}
-      <div className="mt-6 bg-white rounded-lg p-6 shadow-sm">
-        <h2 className="text-lg font-medium mb-4">Histórico de Pagamentos</h2>
-        {loan.payments && loan.payments.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Parcela</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {loan.payments.map((payment, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {payment.date ? format(new Date(payment.date), 'dd/MM/yyyy') : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {payment.installmentNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                      <button
-                        onClick={() => handleViewReceipt(payment)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-1"
-                      >
-                        Ver Recibo
-                      </button>
-                      <button
-                        onClick={() => handleSendReceiptWhatsApp(payment)}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        Enviar via WhatsApp
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-center text-gray-500">Nenhum pagamento registrado</p>
-        )}
       </div>
 
       {/* Histórico de Recibos */}

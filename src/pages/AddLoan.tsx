@@ -104,9 +104,9 @@ export default function AddLoan() {
         endDate = customDueDate;
       } else if (paymentType === 'diario') {
         // Calcula a data final (último dia do empréstimo diário)
-        const base = new Date(today);
+        const base = new Date();
         base.setHours(0,0,0,0);
-        base.setDate(base.getDate() + numberOfInstallments);
+        base.setDate(base.getDate() + numberOfInstallments - 1); // Corrigido: subtrai 1 para alinhar com o input
         dueDate = formatDateLocal(base);
         endDate = formatDateLocal(base);
       }
@@ -117,8 +117,8 @@ export default function AddLoan() {
         amount: Number(data.amount),
         interestRate: Number(data.interestRate),
         totalAmount: totalAmount || Number(data.amount),
-        installments: paymentType === 'installments' ? numberOfInstallments : 1,
-        installmentAmount: (totalAmount || Number(data.amount)) / (paymentType === 'installments' ? numberOfInstallments : 1),
+        installments: paymentType === 'installments' ? numberOfInstallments : paymentType === 'diario' ? numberOfInstallments : 1,
+        installmentAmount: paymentType === 'installments' ? (totalAmount || Number(data.amount)) / numberOfInstallments : paymentType === 'diario' ? (installmentValues[0] ? parseFloat(installmentValues[0]) : 0) : (totalAmount || Number(data.amount)),
         startDate: today.toISOString(),
         endDate,
         dueDate,

@@ -141,7 +141,7 @@ export default function ClientDetail() {
                 <label className="text-sm text-gray-500">Endereço</label>
                 <p className="text-gray-900">{client.address || '-'}</p>
                 <p className="text-gray-900">
-                  {client.city ? `${client.city}, ${client.state} - ${client.zipCode}` : '-'}
+                  {client.city ? `${client.city}${client.state ? ', ' + client.state : ''}` : '-'}
                 </p>
               </div>
               
@@ -487,15 +487,6 @@ export default function ClientDetail() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">CEP</label>
-                  <input
-                    type="text"
-                    value={client.zipCode || ''}
-                    onChange={e => setClient({ ...client, zipCode: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
                   <label className="text-sm text-gray-500">Observações</label>
                   <textarea
                     value={client.notes || ''}
@@ -528,7 +519,7 @@ export default function ClientDetail() {
                       address: client.address?.trim() || '',
                       city: client.city?.trim() || '',
                       state: client.state?.trim() || '',
-                      zip_code: client.zipCode?.trim() || '', // Corrigido para o nome do banco
+                      // zip_code removido do envio para o banco
                       notes: client.notes?.trim() || ''
                     };
                     handleEditClient(updatedData);
