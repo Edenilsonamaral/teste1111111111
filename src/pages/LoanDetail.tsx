@@ -19,80 +19,6 @@ export default function LoanDetail() {
   const [showDeleteReceiptModal, setShowDeleteReceiptModal] = useState<string | null>(null);
 
   useEffect(() => {
-<<<<<<< HEAD
-        if (id) {
-            const foundLoan = loans.find(l => l.id === id);
-            if (!foundLoan) {
-                navigate('/loans');
-                return;
-            }
-            // Early return: se já está concluído, nunca volta para outro status
-            if (foundLoan.status === 'completed') {
-                setLoan(foundLoan);
-                const foundClient = clients.find(c => c.id === foundLoan.clientId);
-                if (foundClient) setClient(foundClient);
-                return;
-            }
-            setLoan(foundLoan);
-            const foundClient = clients.find(c => c.id === foundLoan.clientId);
-            if (foundClient) setClient(foundClient);
-
-            let newStatus = foundLoan.status as 'active' | 'completed' | 'defaulted';
-            const today = new Date();
-            const dueDate = new Date(foundLoan.dueDate);
-            const recibosDoEmprestimo = receipts.filter(r => r.loanId === foundLoan.id);
-            const totalPagoRecibos = recibosDoEmprestimo.reduce((sum, r) => sum + (r.amount || 0), 0);
-
-            if (foundLoan.paymentType === 'diario') {
-                // Corrigir: usar recibos confirmados para contagem de parcelas pagas
-                const totalParcelas = foundLoan.installments || foundLoan.numberOfInstallments || 0;
-                const recibosPagos = receipts.filter(r => r.loanId === foundLoan.id).length;
-                const hasQuitacao = foundLoan.payments?.some(p => p.type === 'full');
-                if (hasQuitacao || (totalParcelas > 0 && recibosPagos >= totalParcelas)) {
-                    if (String(foundLoan.status) !== 'completed') {
-                        updateLoan(foundLoan.id, { status: 'completed' });
-                        setLoan({ ...foundLoan, status: 'completed' });
-                    }
-                    return; // Impede qualquer alteração posterior do status
-                } else if (today > dueDate) {
-                    newStatus = 'defaulted';
-                } else {
-                    newStatus = 'active';
-                }
-            } else if (foundLoan.paymentType === 'interest_only') {
-                const hasFullPayment = foundLoan.payments?.some(p => p.type === 'full');
-                if (hasFullPayment) {
-                    if (String(foundLoan.status) !== 'completed') {
-                        updateLoan(foundLoan.id, { status: 'completed' });
-                        setLoan({ ...foundLoan, status: 'completed' });
-                    }
-                    return; // Impede qualquer alteração posterior do status
-                } else if (today > dueDate) {
-                    newStatus = 'defaulted';
-                } else {
-                    newStatus = 'active';
-                }
-            } else {
-                if (totalPagoRecibos >= foundLoan.totalAmount) {
-                    if (String(foundLoan.status) !== 'completed') {
-                        updateLoan(foundLoan.id, { status: 'completed' });
-                        setLoan({ ...foundLoan, status: 'completed' });
-                    }
-                    return;
-                } else if (today > dueDate) {
-                    newStatus = 'defaulted';
-                } else {
-                    newStatus = 'active';
-                }
-            }
-
-            if (newStatus !== foundLoan.status) {
-                updateLoan(foundLoan.id, { status: newStatus });
-                setLoan({ ...foundLoan, status: newStatus });
-            }
-        }
-    }, [id, loans, clients, receipts, navigate]);
-=======
     if (id) {
       const foundLoan = loans.find(l => l.id === id);
       if (foundLoan) {
@@ -110,10 +36,11 @@ export default function LoanDetail() {
         const totalPagoRecibos = recibosDoEmprestimo.reduce((sum, r) => sum + (r.amount || 0), 0);
 
         if (foundLoan.paymentType === 'diario') {
-          const totalPagamentos = foundLoan.payments?.length || 0;
+          // Corrige: considera recibos confirmados para status concluído
           const totalParcelas = foundLoan.installments || foundLoan.numberOfInstallments || 0;
+          const recibosPagos = receipts.filter(r => r.loanId === foundLoan.id).length;
           const hasQuitacao = foundLoan.payments?.some(p => p.type === 'full');
-          if (hasQuitacao || (totalParcelas > 0 && totalPagamentos >= totalParcelas)) {
+          if (hasQuitacao || (totalParcelas > 0 && recibosPagos >= totalParcelas)) {
             newStatus = 'completed';
           } else if (today > dueDate) {
             newStatus = 'defaulted';
@@ -149,25 +76,13 @@ export default function LoanDetail() {
       }
     }
   }, [id, loans, clients, receipts, navigate]);
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
 
   const handlePayment = async () => {
     if (!loan || !client) return;
 
     try {
-<<<<<<< HEAD
-      let paymentTypeField: 'interest_only' | 'full';
-      if (loan.paymentType === 'interest_only') {
-        paymentTypeField = selectedInstallment === 2 ? 'full' : 'interest_only';
-      } else if (loan.paymentType === 'diario' || loan.paymentType === 'installments') {
-        paymentTypeField = 'full';
-      } else {
-        paymentTypeField = 'full';
-      }
-=======
       let paymentTypeField = 'interest_only';
       let selectedType = 'interest_only';
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
 
       if (loan.paymentType === 'diario') {
         const parcelaValor = Number(paymentAmount);
@@ -176,14 +91,11 @@ export default function LoanDetail() {
           loan.installments = totalParcelas;
           loan.installmentAmount = parcelaValor;
         }
-<<<<<<< HEAD
-=======
       } else if (loan.paymentType === 'interest_only') {
         selectedType = paymentAmount && Number(paymentAmount) >= loan.totalAmount ? 'full' : 'interest_only';
         if (selectedType === 'full') paymentTypeField = 'full';
       } else if (loan.paymentType === 'installments') {
         paymentTypeField = 'full';
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
       }
 
       // Monta objeto para salvar no Supabase
@@ -192,11 +104,7 @@ export default function LoanDetail() {
         amount: Number(paymentAmount),
         date: new Date().toISOString(),
         installmentNumber: selectedInstallment,
-<<<<<<< HEAD
-        type: paymentTypeField,
-=======
         type: paymentTypeField as 'interest_only' | 'full',
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
       };
       // Salva pagamento no Supabase e obtém UUID real
       const savedPayment = await addPayment(paymentToSave);
@@ -205,49 +113,37 @@ export default function LoanDetail() {
       // Atualiza pagamentos localmente
       const updatedPayments = [...(loan.payments || []), savedPayment];
       let isCompleted = false;
-<<<<<<< HEAD
-      if (loan.paymentType === 'interest_only') {
-        // Se houver pagamento do tipo 'full', status vai para concluído
-        const hasFullPayment = updatedPayments.some(p => p.type === 'full') || paymentTypeField === 'full';
-        isCompleted = hasFullPayment;
-      } else if (loan.paymentType === 'diario') {
-=======
       if (loan.paymentType === 'diario') {
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
-        const totalPagamentos = updatedPayments.length;
+        // Corrige: considera recibos confirmados para status concluído
         const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
+        const recibosPagos = receipts.filter(r => r.loanId === loan.id).length;
         const hasQuitacao = updatedPayments.some(p => p.type === 'full');
-        isCompleted = hasQuitacao || (totalParcelas > 0 && totalPagamentos >= totalParcelas);
-<<<<<<< HEAD
-=======
+        isCompleted = hasQuitacao || (totalParcelas > 0 && recibosPagos >= totalParcelas);
       } else if (loan.paymentType === 'interest_only') {
-        isCompleted = updatedPayments.some(p => p.type === 'full' && p.amount >= loan.totalAmount);
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
+        // Se o pagamento for do tipo 'full' (Juros + Capital), conclui o empréstimo
+        isCompleted = savedPayment.type === 'full' || updatedPayments.some(p => p.type === 'full' && p.amount >= loan.totalAmount);
       } else {
         const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
         const parcelasPagas = updatedPayments.length;
         const totalPago = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
         isCompleted = (totalParcelas > 0 && parcelasPagas >= totalParcelas) || (totalPago >= loan.totalAmount);
       }
-<<<<<<< HEAD
-      // Atualiza status para completed se for quitação
-      const updatedLoan = await updateLoan(loan.id, {
-=======
-      await updateLoan(loan.id, {
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
-        payments: updatedPayments,
+      // LOG: Verificando updateLoan status
+      console.log('DEBUG updateLoan:', {
+        id: loan.id,
+        status: isCompleted ? 'completed' : 'active',
+        installments: loan.installments,
+        installmentAmount: loan.installmentAmount,
+        updatedPayments,
+        loan,
+      });
+      const result = await updateLoan(loan.id, {
         status: isCompleted ? 'completed' : 'active',
         installments: loan.installments,
         installmentAmount: loan.installmentAmount,
       });
-<<<<<<< HEAD
-      if (updatedLoan) {
-        setLoan(updatedLoan);
-      }
-      // Atualiza o estado local imediatamente para refletir na UI
-      setLoan({ ...loan, payments: updatedPayments, status: isCompleted ? 'completed' : 'active' });
-=======
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
+      console.log('DEBUG retorno updateLoan:', result);
+      if (result) setLoan(result); // Atualiza o estado local imediatamente
 
       // Gera recibo usando o UUID real do pagamento e valor pago confirmado atualizado
       const totalPagoConfirmado = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -332,51 +228,36 @@ export default function LoanDetail() {
       return;
     }
 
-    // Busca todos os recibos do empréstimo para somar o total pago confirmado
-    const recibosDoEmprestimo = receipts.filter(r => r.loanId === loan.id);
-    const pagoConfirmado = recibosDoEmprestimo.reduce((sum, r) => sum + (r.amount || 0), 0);
-
-<<<<<<< HEAD
-    // Calcula parcelas pagas e totais se for parcelado ou diário
-    let parcelasPagasStr = undefined;
-    if (loan.paymentType === 'installments' || loan.paymentType === 'diario') {
-      const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
-      // Corrigido: conta recibos confirmados, não só pagamentos locais
-      const parcelasPagas = recibosDoEmprestimo.length;
-      parcelasPagasStr = `${parcelasPagas}/${totalParcelas}`;
-=======
     // Descobre a parcela atual e total de parcelas, se aplicável
     let parcelaAtual: number | undefined = undefined;
     let totalParcelas: number | undefined = undefined;
-    if (loan.installments && loan.installments > 1) {
-      // Tenta encontrar o número da parcela pelo paymentId do recibo
+    if (loan.paymentType === 'diario') {
+      // Para diário, conta recibos confirmados
+      const recibosPagos = receipts.filter(r => r.loanId === loan.id);
+      parcelaAtual = recibosPagos.length;
+      totalParcelas = loan.installments || loan.numberOfInstallments || 0;
+    } else if (loan.installments && loan.installments > 1) {
+      // Parcelado tradicional
       const pagamentoRecibo = loan.payments?.find(p => p.id === receipt.paymentId);
-      parcelaAtual = pagamentoRecibo?.installmentNumber;
+      parcelaAtual = pagamentoRecibo?.installmentNumber ?? (receipts.filter(r => r.loanId === loan.id).length);
       totalParcelas = loan.installments;
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
     }
+
+    // Calcula o total pago confirmado para o recibo
+    const recibosDoEmprestimo = receipts.filter(r => r.loanId === loan.id);
+    const pagoConfirmado = recibosDoEmprestimo.reduce((sum, r) => sum + (r.amount || 0), 0);
 
     // Monta a mensagem do recibo conforme modelo solicitado
     const recibo = gerarRecibo({
       docNumero: receipt.receiptNumber,
       cliente: client.name,
-<<<<<<< HEAD
       vencimento: loan.dueDate ? format(new Date(loan.dueDate + 'T00:00:00'), 'dd/MM/yyyy') : '-',
-      dataPagamento: receipt.date && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date)
-  ? format(new Date(receipt.date + 'T00:00:00'), 'dd/MM/yyyy')
-  : (receipt.date ? format(new Date(receipt.date), 'dd/MM/yyyy') : '-'),
-      valorPagoHoje: receipt.amount,
-      pagoConfirmado,
-      dataGeracao: new Date(),
-      parcelasPagasStr
-=======
-      vencimento: loan.dueDate ? format(new Date(loan.dueDate), 'dd/MM/yyyy') : '-',
       valorPagoHoje: receipt.amount,
       parcelaAtual,
       totalParcelas,
       pagoConfirmado,
       dataGeracao: new Date(),
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
+      dataPagamento: receipt.date ? new Date(receipt.date) : new Date(), // Corrigido para usar a data do pagamento
     });
 
     const link = `https://wa.me/${telefone}?text=${encodeURIComponent(recibo)}`;
@@ -408,40 +289,19 @@ export default function LoanDetail() {
     if (!loan || !client) return;
     // Corrigido: considera todos os pagamentos confirmados
     const pagamentos = loan.payments || [];
-<<<<<<< HEAD
-    const pagoConfirmado = pagamentos.reduce((sum, p) => sum + p.amount, 0);
-    // Calcula parcelas pagas e totais se for parcelado ou diário
-    let parcelasPagasStr = undefined;
-    if (loan.paymentType === 'installments' || loan.paymentType === 'diario') {
-      const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
-      // Corrigido: conta recibos confirmados, não só pagamentos locais
-      const recibosDoEmprestimo = receipts.filter(r => r.loanId === loan.id);
-      const parcelasPagas = recibosDoEmprestimo.length;
-      parcelasPagasStr = `${parcelasPagas}/${totalParcelas}`;
-    }
-    const recibo = gerarRecibo({
-      docNumero: loan.id.slice(-4),
-      cliente: client.name,
-      vencimento: loan.dueDate ? format(new Date(loan.dueDate + 'T00:00:00'), 'dd/MM/yyyy') : '-',
-      dataPagamento: payment.date ? format(new Date(payment.date + 'T00:00:00'), 'dd/MM/yyyy') : '-',
-      valorPagoHoje: payment.amount,
-      pagoConfirmado,
-      dataGeracao: new Date(),
-      parcelasPagasStr
-=======
     const parcelaAtual = pagamentos.length;
     const totalParcelas = loan.installments;
     const pagoConfirmado = pagamentos.reduce((sum, p) => sum + p.amount, 0);
     const recibo = gerarRecibo({
       docNumero: loan.id.slice(-4),
       cliente: client.name,
-      vencimento: loan.dueDate ? format(new Date(loan.dueDate), 'dd/MM/yyyy') : '-',
+      vencimento: loan.dueDate ? format(new Date(loan.dueDate + 'T00:00:00'), 'dd/MM/yyyy') : '-',
       valorPagoHoje: payment.amount,
       parcelaAtual,
       totalParcelas,
       pagoConfirmado,
-      dataGeracao: new Date()
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
+      dataGeracao: new Date(),
+      dataPagamento: payment.date ? new Date(payment.date) : new Date(), // Corrigido para usar a data do pagamento
     });
 
     const link = `https://wa.me/${telefone}?text=${encodeURIComponent(recibo)}`;
@@ -471,10 +331,13 @@ export default function LoanDetail() {
   // Cálculo correto do total pago e saldo a receber
   const recibosDoEmprestimo = receipts.filter(r => loan && r.loanId === loan.id);
   const totalPagoConfirmado = recibosDoEmprestimo.reduce((sum, r) => sum + (r.amount || 0), 0);
-  // Se for 'interest_only', saldo a receber permanece igual ao total com juros
-  const saldoAReceber = loan.paymentType === 'interest_only'
+  // Se for 'interest_only' e houver pagamento tipo 'full', saldo a receber é 0
+  let saldoAReceber = loan.paymentType === 'interest_only'
     ? loan.totalAmount
     : loan.totalAmount - totalPagoConfirmado;
+  if (loan.paymentType === 'interest_only' && loan.payments?.some(p => p.type === 'full')) {
+    saldoAReceber = 0;
+  }
 
   return (
     <div>
@@ -529,11 +392,7 @@ export default function LoanDetail() {
               </div>
               <div>
                 <span className="text-gray-500">Vencimento:</span>
-<<<<<<< HEAD
-                <p className="font-medium">{loan.dueDate ? format(new Date(loan.dueDate + 'T00:00:00'), 'dd/MM/yyyy') : '-'}</p>
-=======
                 <p className="font-medium">{loan.dueDate ? format(new Date(loan.dueDate), 'dd/MM/yyyy') : '-'}</p>
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
               </div>
             </div>
             <div>
@@ -550,33 +409,11 @@ export default function LoanDetail() {
             <div>
               <span className="text-gray-500">Modalidade:</span>
               <p className="font-medium">
-<<<<<<< HEAD
                 {loan.paymentType === 'interest_only'
                   ? 'Somente Juros'
                   : loan.paymentType === 'diario'
-                    ? 'Diário'
-                    : `Parcelado em ${loan.numberOfInstallments || 0}x`}
-              </p>
-            </div>
-            {loan.paymentType === 'diario' && (
-              <div>
-                <span className="text-gray-500">Parcelas:</span>
-                <p className="font-medium">
-                  {(() => {
-                    const qtdParcelas = loan.installments || loan.numberOfInstallments;
-                    let valorParcela = loan.installmentAmount;
-                    if ((!valorParcela || valorParcela === 0) && qtdParcelas) {
-                      valorParcela = loan.totalAmount / qtdParcelas;
-                    }
-                    return qtdParcelas && valorParcela
-                      ? `${qtdParcelas} x ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorParcela)}`
-                      : '-';
-                  })()}
-                </p>
-              </div>
-            )}
-=======
-                {loan.paymentType === 'interest_only' ? 'Somente Juros' : `Parcelado em ${loan.numberOfInstallments || 0}x`}
+                  ? 'Diário'
+                  : `Parcelado em ${loan.numberOfInstallments || loan.installments || 0}x`}
               </p>
             </div>
             <div>
@@ -594,7 +431,6 @@ export default function LoanDetail() {
                 })()}
               </p>
             </div>
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
             <div>
               <span className="text-gray-500">Observações:</span>
               <p className="font-medium whitespace-pre-line">{loan.notes || '-'}</p>
@@ -620,18 +456,12 @@ export default function LoanDetail() {
             </div>
             <div>
               <span className="text-gray-500">Parcelas Pagas:</span>
-<<<<<<< HEAD
-              <p className="font-medium">{recibosDoEmprestimo ? recibosDoEmprestimo.length : 0}</p>
-=======
               <p className="font-medium">{loan.payments?.length || 0}</p>
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
             </div>
           </div>
         </div>
       </div>
 
-<<<<<<< HEAD
-=======
       {/* Payment History */}
       <div className="mt-6 bg-white rounded-lg p-6 shadow-sm">
         <h2 className="text-lg font-medium mb-4">Histórico de Pagamentos</h2>
@@ -682,7 +512,6 @@ export default function LoanDetail() {
         )}
       </div>
 
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
       {/* Histórico de Recibos */}
       <div className="mt-6 bg-white rounded-lg p-6 shadow-sm">
         <h2 className="text-lg font-medium mb-4">Histórico de Recibos</h2>
@@ -701,17 +530,7 @@ export default function LoanDetail() {
                 {receipts.filter(r => r.loanId === loan.id).map((receipt) => (
                   <tr key={receipt.id}>
                     <td className="px-6 py-4 whitespace-nowrap">{receipt.receiptNumber}</td>
-<<<<<<< HEAD
-                    <td className="px-6 py-4 whitespace-nowrap">{
-        receipt.date && !isNaN(new Date(receipt.date).getTime())
-          ? new Date(receipt.date).toLocaleDateString('pt-BR')
-          : (receipt.date && !isNaN(new Date(receipt.date + 'T00:00:00').getTime())
-            ? new Date(receipt.date + 'T00:00:00').toLocaleDateString('pt-BR')
-            : '-')
-      }</td>
-=======
                     <td className="px-6 py-4 whitespace-nowrap">{new Date(receipt.date).toLocaleDateString('pt-BR')}</td>
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
                     <td className="px-6 py-4 whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receipt.amount)}</td>
                     <td className="px-6 py-4 whitespace-nowrap flex gap-2">
                       <button
@@ -749,22 +568,11 @@ export default function LoanDetail() {
                     Tipo de Pagamento
                   </label>
                   <select
-<<<<<<< HEAD
                     className="form-select w-full"
                     value={selectedInstallment === 2 ? 'full' : 'interest_only'}
                     onChange={e => setSelectedInstallment(e.target.value === 'full' ? 2 : 1)}
                   >
                     <option value="interest_only">Juros</option>
-=======
-                    className="form-input w-full"
-                    value={Number(paymentAmount) >= loan.amount ? 'full' : 'interest_only'}
-                    onChange={(e) => {
-                      const type = e.target.value;
-                      setPaymentAmount(type === 'full' ? String(loan.totalAmount) : String(loan.interestAmount ?? ''));
-                    }}
-                  >
-                    <option value="interest_only">Somente Juros</option>
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
                     <option value="full">Juros + Capital</option>
                   </select>
                 </div>
@@ -792,14 +600,10 @@ export default function LoanDetail() {
                 Cancelar
               </button>
               <button
-<<<<<<< HEAD
-                onClick={handlePayment}
-=======
                 onClick={() => {
                   handlePayment();
                   setShowPaymentModal(false);
                 }}
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
                 className="btn btn-primary"
               >
                 Confirmar Pagamento

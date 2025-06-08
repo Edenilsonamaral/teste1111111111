@@ -136,7 +136,8 @@ export function LocalDataProvider({ children }: { children: ReactNode }) {
   // Updates
   async function updateClient(id: string, client: Partial<Client>): Promise<Client | null> {
     const updateData: any = { ...client };
-    if (updateData.zipCode) {
+    // Mapeia zipCode para zip_code se vier do formulário
+    if (updateData.zipCode !== undefined) {
       updateData.zip_code = updateData.zipCode;
       delete updateData.zipCode;
     }
@@ -154,7 +155,9 @@ export function LocalDataProvider({ children }: { children: ReactNode }) {
   }
 
   async function updateLoan(id: string, loan: Partial<Loan>): Promise<Loan | null> {
+    // REMOVE o campo payments do update enviado ao Supabase
     const updateData: any = { ...loan };
+    delete updateData.payments;
     if (updateData.clientId) {
       updateData.client_id = updateData.clientId;
       delete updateData.clientId;
@@ -388,14 +391,14 @@ function mapClientFromDb(db: any): Client {
 function mapClientToDb(client: Omit<Client, 'id' | 'createdAt'>) {
   return {
     name: client.name,
-    email: client.email,
+    email: client.email ?? '',
     phone: client.phone,
-    cpf: client.cpf,
-    address: client.address,
-    city: client.city,
-    state: client.state,
-    zip_code: client.zipCode,
-    notes: client.notes ?? null,
+    cpf: client.cpf ?? '',
+    address: client.address ?? '',
+    city: client.city ?? '',
+    state: client.state ?? '',
+    zip_code: client.zipCode ?? '',
+    notes: client.notes ?? '',
   };
 }
 // LOANS

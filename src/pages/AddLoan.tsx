@@ -75,24 +75,12 @@ export default function AddLoan() {
     }
   }, [watchAmount, watchInterestRate, paymentType, numberOfInstallments]);
 
-<<<<<<< HEAD
-  // useEffect para sugerir 30 dias à frente apenas se o usuário não alterou manualmente
-  useEffect(() => {
-    if ((paymentType === 'installments' || paymentType === 'interest_only')) {
-      // Só sugere se o usuário não alterou manualmente
-      if (!customDueDate) {
-        let baseDate = new Date();
-        baseDate.setDate(baseDate.getDate() + 30);
-        setCustomDueDate(baseDate.toISOString().split('T')[0]);
-      }
-=======
   useEffect(() => {
     // Para Parcelado e Somente Juros, sugere 30 dias à frente
     if (paymentType === 'installments' || paymentType === 'interest_only') {
       let baseDate = new Date();
       baseDate.setDate(baseDate.getDate() + 30);
       setCustomDueDate(baseDate.toISOString().split('T')[0]);
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
     }
     // Para Diário, não mostra campo de data
   }, [paymentType, numberOfInstallments]);
@@ -111,16 +99,9 @@ export default function AddLoan() {
       let dueDate: string = '';
       let endDate: string = '';
       if (paymentType === 'installments' || paymentType === 'interest_only') {
-<<<<<<< HEAD
-        // Usa exatamente o valor do input, sem ajuste de fuso
-        dueDate = customDueDate; // customDueDate já está no formato YYYY-MM-DD
+        // Corrige: salva a data de vencimento como string do input (YYYY-MM-DD) sem conversão para Date
+        dueDate = customDueDate;
         endDate = customDueDate;
-=======
-        // Corrige: converte string para Date local e força horário 12:00 para evitar problemas de fuso
-        const localDate = new Date(customDueDate + 'T12:00:00');
-        dueDate = formatDateLocal(localDate);
-        endDate = formatDateLocal(localDate);
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
       } else if (paymentType === 'diario') {
         // Calcula a data final (último dia do empréstimo diário)
         const base = new Date(today);
@@ -275,8 +256,9 @@ export default function AddLoan() {
                         onChange={(e) => {
                           const qtdParcelas = e.target.value ? Number(e.target.value) : 0;
                           setNumberOfInstallments(qtdParcelas);
-                          if (qtdParcelas > 0 && installmentValues[0]) {
-                            const valorParcela = parseFloat(installmentValues[0]);
+                          // Corrige: sempre usa o valor atual do input de parcela
+                          const valorParcela = installmentValues[0] ? parseFloat(installmentValues[0]) : 0;
+                          if (valorParcela > 0 && qtdParcelas > 0) {
                             setTotalAmount(qtdParcelas * valorParcela);
                           } else {
                             setTotalAmount(0);
@@ -295,7 +277,8 @@ export default function AddLoan() {
                         value={installmentValues[0] || ''}
                         onChange={(e) => {
                           const valorParcela = e.target.value ? parseFloat(e.target.value) : 0;
-                          setInstallmentValues([e.target.value]); // Store raw input to allow blank values
+                          setInstallmentValues([e.target.value]);
+                          // Corrige: sempre usa o valor atual da quantidade de parcelas
                           if (valorParcela > 0 && numberOfInstallments > 0) {
                             setTotalAmount(numberOfInstallments * valorParcela);
                           } else {
@@ -383,6 +366,7 @@ export default function AddLoan() {
                     <div className="flex justify-between items-center">
                       <span className="font-medium">Total:</span>
                       <span className="text-lg font-semibold text-indigo-600">
+                        {/* Corrige: mostra o total corretamente para diário */}
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}
                       </span>
                     </div>

@@ -114,7 +114,9 @@ export default function Reports() {
       const paid = receipts
         .filter(r => r.loanId === loan.id)
         .reduce((s, r) => s + r.amount, 0);
-      return sum + (loan.totalAmount - paid);
+      // Nunca deixa negativo
+      const saldo = loan.totalAmount - paid;
+      return sum + (saldo > 0 ? saldo : 0);
     }, 0);
   
   const activeLoans = loans.filter(loan => loan.status === 'active').length;
@@ -279,7 +281,7 @@ export default function Reports() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip formatter={(value) => [`${value} empréstimos`, '']} />
+              <Tooltip formatter={(value) => `${value} empréstimos`} />
               <Bar dataKey="value" name="Empréstimos" fill="#8884d8" barSize={60}>
                 {[
                   { name: 'Ativos', value: activeLoans, color: '#10B981' },
@@ -332,7 +334,8 @@ export default function Reports() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value), 'Valor']} />
+                {/* Corrige o erro de sobrecarga do Tooltip para valores monetários */}
+                <Tooltip formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))} />
                 <Legend />
                 <Line 
                   type="monotone" 
@@ -363,7 +366,7 @@ export default function Reports() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)} />
+              <Tooltip formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))} />
               <Legend />
               <Bar dataKey="loans" name="Empréstimos" fill="#10B981" />
               <Bar dataKey="payments" name="Pagamentos" fill="#3B82F6" />

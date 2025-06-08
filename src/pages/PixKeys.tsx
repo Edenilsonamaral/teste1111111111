@@ -192,10 +192,7 @@ export default function PixKeys() {
           </tbody>
         </table>
       </div>
-<<<<<<< HEAD
-=======
       <footer className="mt-8 text-center text-gray-400 text-xs">Desenvolvido por Seu Nome - {new Date().getFullYear()}</footer>
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
     </div>
   );
 }

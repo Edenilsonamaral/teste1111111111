@@ -2,27 +2,31 @@ import { Users, CreditCard, TrendingUp, Receipt, Plus } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { Link } from 'react-router-dom';
 import { useLocalData } from '../contexts/SupabaseContext';
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo } from 'react';
 
 export default function Dashboard() {
   const { clients, loans, receipts } = useLocalData();
-  const [totalReceived, setTotalReceived] = useState(0);
 
-  // Calculate dashboard stats
+  // Unifica cálculo igual ao Reports: soma recibos confirmados
   const stats = useMemo(() => {
     const activeLoans = loans.filter(loan => loan.status === 'active').length;
-    // Corrigido: soma apenas o campo amount de todos os empréstimos
     const totalLoaned = loans.reduce((sum, loan) => {
       const value = Number(loan.amount);
       return sum + (isNaN(value) ? 0 : value);
     }, 0);
-    
-    // Calculate total remaining balance
-    const remainingBalance = loans.reduce((sum, loan) => {
-      if (loan.status === 'completed') return sum;
-      const paidAmount = loan.payments?.reduce((paid, payment) => paid + payment.amount, 0) || 0;
-      return sum + (loan.totalAmount - paidAmount);
-    }, 0);
+
+    // Total Recebido: soma todos os recibos
+    const totalReceived = receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
+
+    // Saldo a Receber: soma dos empréstimos ativos, descontando recibos confirmados
+    const remainingBalance = loans
+      .filter(loan => loan.status === 'active')
+      .reduce((sum, loan) => {
+        const paid = receipts.filter(r => r.loanId === loan.id).reduce((s, r) => s + (r.amount || 0), 0);
+        // Nunca deixa negativo
+        const saldo = loan.totalAmount - paid;
+        return sum + (saldo > 0 ? saldo : 0);
+      }, 0);
 
     return {
       clientCount: clients.length,
@@ -31,23 +35,7 @@ export default function Dashboard() {
       totalReceived: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalReceived),
       remainingBalance: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(remainingBalance),
     };
-  }, [clients, loans, receipts, totalReceived]);
-
-  useEffect(() => {
-<<<<<<< HEAD
-    // O total recebido deve ser atualizado sempre que loans OU receipts mudarem
-    // pois a exclusão de recibos/pagamentos pode afetar o valor
-    const received = receipts.reduce((sum, receipt) => sum + (receipt.amount || 0), 0);
-    setTotalReceived(received);
-  }, [loans, receipts]);
-=======
-    const received = loans.reduce((sum, loan) => {
-      return sum + (loan.payments?.reduce((paymentSum, payment) => paymentSum + payment.amount, 0) || 0);
-    }, 0);
-
-    setTotalReceived(received);
-  }, [loans]);
->>>>>>> dc3fd465cefafd4c30e6629156e4532819891d71
+  }, [clients, loans, receipts]);
 
   return (
     <div>
