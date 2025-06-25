@@ -17,6 +17,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
     { icon: <Home />, text: 'Início', path: '/' },
     { icon: <Users />, text: 'Clientes', path: '/clients' },
     { icon: <CreditCard />, text: 'Empréstimos', path: '/loans' },
+    { icon: <CreditCard />, text: 'Empréstimos Vencidos', path: '/overdue-loans' },
     { icon: <Receipt />, text: 'Recibos', path: '/receipts' },
     { icon: <BarChart3 />, text: 'Relatórios', path: '/reports' },
     { icon: <Receipt />, text: 'Minhas Chaves Pix', path: '/pix-keys' },

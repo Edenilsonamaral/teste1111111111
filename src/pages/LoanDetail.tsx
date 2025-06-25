@@ -17,6 +17,9 @@ export default function LoanDetail() {
   const [selectedInstallment, setSelectedInstallment] = useState<number>(1);
   const [paymentAmount, setPaymentAmount] = useState<string>(''); // Inicializa como string vazia
   const [showDeleteReceiptModal, setShowDeleteReceiptModal] = useState<string | null>(null);
+  const [showEditDueDate, setShowEditDueDate] = useState(false);
+  const [newDueDate, setNewDueDate] = useState(loan?.dueDate ? loan.dueDate.substring(0, 10) : '');
+  const [savingDueDate, setSavingDueDate] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -331,6 +334,30 @@ export default function LoanDetail() {
   //   }
   // };
 
+  // Função para alterar a data de vencimento e reativar o empréstimo
+  const handleSaveDueDate = async () => {
+    if (!loan || !newDueDate) return;
+    setSavingDueDate(true);
+    try {
+      // Garante formato YYYY-MM-DD
+      const [d1, d2, d3] = newDueDate.split('/');
+      let formattedDate = newDueDate;
+      if (d1 && d2 && d3 && d1.length === 2 && d2.length === 2 && d3.length === 4) {
+        // Se vier DD/MM/YYYY, converte para YYYY-MM-DD
+        formattedDate = `${d3}-${d2}-${d1}`;
+      }
+      // Envia dueDate e endDate em camelCase para o contexto
+      const result = await updateLoan(loan.id, { dueDate: formattedDate, endDate: formattedDate, status: 'active' });
+      if (result) {
+        setLoan({ ...loan, dueDate: formattedDate, endDate: formattedDate, status: 'active' });
+        setShowEditDueDate(false);
+      }
+    } catch (e) {
+      alert('Erro ao atualizar vencimento!');
+    }
+    setSavingDueDate(false);
+  };
+
   if (!loan || !client) {
     return <div className="p-4 text-center">Carregando...</div>;
   }
@@ -365,6 +392,15 @@ export default function LoanDetail() {
           >
             Registrar Pagamento
           </button>
+          {/* Botão para editar vencimento se inadimplente */}
+          {loan.status === 'defaulted' && (
+            <button
+              onClick={() => setShowEditDueDate(true)}
+              className="btn btn-warning"
+            >
+              Alterar Vencimento
+            </button>
+          )}
         </div>
       </div>
 
@@ -620,6 +656,41 @@ export default function LoanDetail() {
                 className="btn btn-danger"
               >
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para editar vencimento */}
+      {showEditDueDate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-medium mb-4">Alterar Data de Vencimento</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nova Data de Vencimento</label>
+              <input
+                type="date"
+                className="form-input w-full"
+                value={newDueDate}
+                onChange={e => setNewDueDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 10)}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowEditDueDate(false)}
+                disabled={savingDueDate}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveDueDate}
+                disabled={savingDueDate || !newDueDate}
+              >
+                {savingDueDate ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>

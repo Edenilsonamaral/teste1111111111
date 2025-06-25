@@ -182,6 +182,14 @@ export function LocalDataProvider({ children }: { children: ReactNode }) {
       updateData.payment_type = updateData.paymentType;
       delete updateData.paymentType;
     }
+    if (updateData.dueDate) {
+      updateData.due_date = updateData.dueDate;
+      delete updateData.dueDate;
+    }
+    if (updateData.endDate) {
+      updateData.end_date = updateData.endDate;
+      delete updateData.endDate;
+    }
     const { data, error } = await supabase.from('loans').update(updateData).eq('id', id).select().single();
     if (!error && data) {
       const mapped = mapLoanFromDb(data);
