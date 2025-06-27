@@ -112,14 +112,17 @@ export default function Reports() {
     .filter(loan => loan.status === 'active')
     .reduce((sum, loan) => {
       if (loan.paymentType === 'interest_only') {
-        // Busca pagamentos do tipo 'full' na lista de pagamentos do empréstimo
         const hasFull = loan.payments && loan.payments.some(p => p.type === 'full');
         return sum + (hasFull ? 0 : loan.totalAmount);
+      } else if (loan.paymentType === 'diario') {
+        const hasFull = loan.payments && loan.payments.some(p => p.type === 'full');
+        const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
+        const valorParcela = loan.installmentAmount || 0;
+        const totalPago = receipts.filter(r => r.loanId === loan.id).reduce((s, r) => s + (r.amount || 0), 0);
+        const saldo = hasFull ? 0 : Math.max((totalParcelas * valorParcela) - totalPago, 0);
+        return sum + saldo;
       } else {
-        const paid = receipts
-          .filter(r => r.loanId === loan.id)
-          .reduce((s, r) => s + r.amount, 0);
-        // Nunca deixa negativo
+        const paid = receipts.filter(r => r.loanId === loan.id).reduce((s, r) => s + (r.amount || 0), 0);
         const saldo = loan.totalAmount - paid;
         return sum + (saldo > 0 ? saldo : 0);
       }

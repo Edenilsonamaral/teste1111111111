@@ -169,7 +169,11 @@ export default function Loans() {
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(loan.amount)}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(loan.totalAmount)}
+                      Total: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                        loan.paymentType === 'diario' && loan.installments && loan.installmentAmount
+                          ? loan.installments * loan.installmentAmount
+                          : loan.totalAmount
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

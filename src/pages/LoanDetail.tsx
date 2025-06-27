@@ -364,12 +364,24 @@ export default function LoanDetail() {
   // Cálculo correto do total pago e saldo a receber
   const recibosDoEmprestimo = receipts.filter(r => loan && r.loanId === loan.id);
   const totalPagoConfirmado = recibosDoEmprestimo.reduce((sum, r) => sum + (r.amount || 0), 0);
-  // Se for 'interest_only' e houver pagamento tipo 'full', saldo a receber é 0
-  let saldoAReceber = loan.paymentType === 'interest_only'
-    ? loan.totalAmount
-    : loan.totalAmount - totalPagoConfirmado;
-  if (loan.paymentType === 'interest_only' && loan.payments?.some(p => p.type === 'full')) {
-    saldoAReceber = 0;
+
+  // Ajuste: saldo a receber por modalidade
+  let saldoAReceber = 0;
+  if (loan.paymentType === 'interest_only') {
+    // Só zera se houver pagamento do tipo 'full'
+    const quitado = loan.payments?.some(p => p.type === 'full');
+    saldoAReceber = quitado ? 0 : loan.totalAmount;
+  } else if (loan.paymentType === 'diario') {
+    // Diário: saldo a receber é o total das parcelas menos o que já foi pago
+    const quitado = loan.payments?.some(p => p.type === 'full');
+    saldoAReceber = quitado ? 0 : Math.max((loan.installments && loan.installmentAmount)
+      ? loan.installments * loan.installmentAmount - totalPagoConfirmado
+      : loan.totalAmount - totalPagoConfirmado, 0);
+  } else {
+    // Parcelado tradicional
+    saldoAReceber = Math.max((loan.installments && loan.installmentAmount)
+      ? loan.installments * loan.installmentAmount - totalPagoConfirmado
+      : loan.totalAmount - totalPagoConfirmado, 0);
   }
 
   return (
@@ -422,8 +434,12 @@ export default function LoanDetail() {
               </div>
               <div>
                 <span className="text-gray-500">Total com Juros:</span>
-                <p className="font-medium">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(loan.totalAmount)}
+                <p className="font-medium text-blue-700">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    loan.paymentType === 'diario' && loan.installments && loan.installmentAmount
+                      ? loan.installments * loan.installmentAmount
+                      : loan.totalAmount
+                  )}
                 </p>
               </div>
             </div>
@@ -434,7 +450,11 @@ export default function LoanDetail() {
               </div>
               <div>
                 <span className="text-gray-500">Vencimento:</span>
-                <p className="font-medium">{loan.dueDate ? format(new Date(loan.dueDate + 'T00:00:00'), 'dd/MM/yyyy') : '-'}</p>
+                <p className="font-medium">
+                  {loan.paymentType === 'diario'
+                    ? 'Vencimento diário'
+                    : (loan.dueDate ? format(new Date(loan.dueDate + 'T00:00:00'), 'dd/MM/yyyy') : '-')}
+                </p>
               </div>
             </div>
             <div>
@@ -511,7 +531,11 @@ export default function LoanDetail() {
             </div>
             <div>
               <span className="text-gray-500">Parcelas Pagas:</span>
-              <p className="font-medium">{loan.payments?.length || 0}</p>
+              <p className="font-medium">
+                {loan.paymentType === 'diario'
+                  ? receipts.filter(r => r.loanId === loan.id).length
+                  : loan.payments?.length || 0}
+              </p>
             </div>
           </div>
         </div>
