@@ -1,88 +1,98 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+
 import dayjs from 'dayjs';
 import { useLocalData } from '../contexts/SupabaseContext';
-
-interface Loan {
-  id: string;
-  clientId: string;
-  dueDate: string;
-  amount: number;
-  totalAmount?: number; // ADICIONADO
-  status: string;
-}
+import { useMemo } from 'react';
+import type { Loan } from '../types';
 
 export default function OverdueLoans() {
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [debugInadimplentes, setDebugInadimplentes] = useState<any[]>([]);
-  const { clients } = useLocalData();
-
-  useEffect(() => {
-    async function fetchOverdueLoans() {
-      setLoading(true);
-      // Busca todos inadimplentes (status defaulted)
-      const { data, error } = await supabase
-        .from('loans')
-        .select('*')
-        .eq('status', 'defaulted');
-      if (error) {
-        console.error('Erro ao buscar inadimplentes:', error);
-      }
-      // Mapeia os campos para camelCase
-      const mapped = (data || []).map((loan: any) => ({
-        id: loan.id,
-        clientId: loan.client_id,
-        dueDate: loan.due_date,
-        amount: loan.amount,
-        totalAmount: loan.total_amount, // ADICIONADO
-        status: loan.status,
-      }));
-      setLoans(mapped);
-      setDebugInadimplentes(mapped); // debug usa o mesmo array já mapeado
-      setLoading(false);
-    }
-    fetchOverdueLoans();
-  }, []);
-
   // Função para buscar nome do cliente pelo clientId
   const getClientName = (clientId: string) => {
     const client = clients.find(c => c.id === clientId);
     return client ? client.name : 'Cliente desconhecido';
   };
+  const { clients, loans, payments } = useLocalData();
+// ...restante do código permanece igual...
 
+
+  // Função para saber se um empréstimo está inadimplente (vencido)
+  function isOverdue(loan: Loan): boolean {
+    if (loan.status !== 'active') return false;
+    if (loan.paymentType === 'diario') {
+      const start = loan.startDate ? dayjs(loan.startDate) : dayjs(loan.createdAt);
+      const hoje = dayjs();
+      const diasDecorridos = hoje.diff(start, 'day') + 1;
+      const total = loan.installments || loan.numberOfInstallments || 0;
+      // Verifica se existe ao menos uma parcela vencida e não paga
+      for (let i = 0; i < Math.min(diasDecorridos, total); i++) {
+        const venc = start.add(i, 'day');
+        const foiPaga = payments.some(p => p.loanId === loan.id && p.installmentNumber === (i + 1));
+        if ((venc.isBefore(hoje) || venc.isSame(hoje, 'day')) && !foiPaga) {
+          return true;
+        }
+      }
+      return false;
+    } else {
+      const hoje = dayjs();
+      const foiPago = payments.some(p => p.loanId === loan.id);
+      return !!loan.dueDate && hoje.isAfter(dayjs(loan.dueDate)) && !foiPago;
+    }
+  }
+
+  // Lista todos os empréstimos inadimplentes individualmente
+  const overdueLoans = useMemo(() => loans.filter(isOverdue), [loans, payments]);
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Empréstimos Vencidos</h1>
-      {/* DEBUG: Exibe inadimplentes encontrados */}
-      {/* <pre style={{background:'#eee',padding:'8px',marginBottom:'16px',maxHeight:'200px',overflow:'auto'}}>
-        {JSON.stringify(debugInadimplentes, null, 2)}
-      </pre> */}
-      {loading ? (
-        <div>Carregando...</div>
-      ) : loans.length === 0 ? (
+      {overdueLoans.length === 0 ? (
         <div>Nenhum empréstimo vencido encontrado.</div>
       ) : (
-        <table className="min-w-full bg-white border">
-          <thead>
-            <tr>
-              <th className="px-4 py-2 border">Cliente</th>
-              <th className="px-4 py-2 border">Data de Vencimento</th>
-              <th className="px-4 py-2 border">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loans.map((loan) => (
-              <tr key={loan.id}>
-                <td className="px-4 py-2 border">{getClientName(loan.clientId)}</td>
-                <td className="px-4 py-2 border">{dayjs(loan.dueDate).format('DD/MM/YYYY')}</td>
-                <td className="px-4 py-2 border">R$ {loan.totalAmount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="space-y-6">
+          {overdueLoans.map((loan) => {
+            let parcelasVencidas = 0;
+            let valorVencido = 0;
+            if (loan.paymentType === 'diario') {
+              const start = loan.startDate ? dayjs(loan.startDate) : dayjs(loan.createdAt);
+              const total = loan.installments || loan.numberOfInstallments || 0;
+              const hoje = dayjs();
+              const diasVencidos = Math.min(hoje.diff(start, 'day') + 1, total);
+              const pagas = payments.filter(p => p.loanId === loan.id && p.installmentNumber && p.installmentNumber <= diasVencidos).length;
+              const vencidasNaoPagas = diasVencidos - pagas;
+              parcelasVencidas = vencidasNaoPagas > 0 ? vencidasNaoPagas : 0;
+              valorVencido = (loan.installmentAmount ? loan.installmentAmount : 0) * parcelasVencidas;
+            } else if (loan.paymentType === 'installments') {
+              const total = loan.installments || loan.numberOfInstallments || 0;
+              const hoje = dayjs();
+              const foiPago = payments.some(p => p.loanId === loan.id);
+              if (!foiPago && loan.dueDate && hoje.isAfter(dayjs(loan.dueDate))) {
+                parcelasVencidas = 1;
+                valorVencido = loan.totalAmount ? loan.totalAmount : 0;
+              }
+            } else if (loan.paymentType === 'interest_only') {
+              const foiPago = payments.some(p => p.loanId === loan.id && p.type === 'full');
+              if (!foiPago && loan.dueDate && dayjs().isBefore(dayjs(loan.dueDate)) === false) {
+                parcelasVencidas = 1;
+                valorVencido = loan.totalAmount ? loan.totalAmount : 0;
+              }
+            } else {
+              const foiPago = payments.some(p => p.loanId === loan.id);
+              if (!foiPago && loan.dueDate && dayjs().isAfter(dayjs(loan.dueDate))) {
+                valorVencido = loan.totalAmount ? loan.totalAmount : 0;
+                parcelasVencidas = 1;
+              }
+            }
+            return (
+              <div key={loan.id} className="border rounded p-4 shadow-sm">
+                <div className="font-semibold text-lg mb-1">{getClientName(loan.clientId)}</div>
+                <div className="text-sm text-gray-600 mb-1">Modalidade: {loan.paymentType === 'diario' ? 'Diário' : loan.paymentType === 'installments' ? 'Parcelado' : loan.paymentType === 'interest_only' ? 'Somente Juros' : 'Outro'}</div>
+                <div className="text-sm text-gray-600 mb-1">Valor original: {loan.amount?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+                <div className="text-sm text-gray-600 mb-1">Total de parcelas vencidas: {parcelasVencidas}</div>
+                <div className="text-sm text-gray-600 mb-1">Valor total vencido: {valorVencido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+                <div className="text-sm text-gray-600">Data início: {loan.startDate ? dayjs(loan.startDate).format('DD/MM/YYYY') : (loan.createdAt ? dayjs(loan.createdAt).format('DD/MM/YYYY') : '-')}</div>
+              </div>
+            );
+          })}
+        </div>
       )}
-      {/* Bloco de debug removido */}
     </div>
   );
 }

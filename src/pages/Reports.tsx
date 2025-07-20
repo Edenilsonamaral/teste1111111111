@@ -5,7 +5,33 @@ import { useLocalData } from '../contexts/SupabaseContext';
 import { ReportFilter } from '../types';
 
 export default function Reports() {
-  const { loans, receipts, clients } = useLocalData();
+  const { loans, receipts, clients, updateLoan, payments } = useLocalData();
+  // Recalcula e atualiza o status de todos os empréstimos ao abrir a tela de relatórios
+  useEffect(() => {
+    loans.forEach(async (loan) => {
+      let newStatus = loan.status;
+      const today = new Date();
+      const dueDate = new Date(loan.dueDate);
+      const recibosDoEmprestimo = receipts.filter(r => r.loanId === loan.id);
+      const totalPagoRecibos = recibosDoEmprestimo.reduce((sum, r) => sum + (r.amount || 0), 0);
+      // Considera inadimplente qualquer empréstimo vencido e não quitado, independente da modalidade
+      const hasQuitacao = payments.filter(p => p.loanId === loan.id).some(p => p.type === 'full');
+      const totalParcelas = loan.installments || loan.numberOfInstallments || 0;
+      const recibosPagos = receipts.filter(r => r.loanId === loan.id).length;
+      const pagamentosDoEmprestimo = payments.filter(p => p.loanId === loan.id);
+      const hasFullPayment = pagamentosDoEmprestimo.some(p => p.type === 'full' && p.amount >= loan.totalAmount);
+      if (hasQuitacao || hasFullPayment || (totalParcelas > 0 && recibosPagos >= totalParcelas) || (loan.paymentType !== 'diario' && totalPagoRecibos >= loan.totalAmount)) {
+        newStatus = 'completed';
+      } else if (today > dueDate) {
+        newStatus = 'defaulted';
+      } else {
+        newStatus = 'active';
+      }
+      if (newStatus !== loan.status) {
+        await updateLoan(loan.id, { status: newStatus });
+      }
+    });
+  }, [loans, receipts, payments, updateLoan]);
   const [filter, setFilter] = useState<ReportFilter>({
     startDate: new Date(new Date().setDate(1)).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
@@ -297,7 +323,7 @@ export default function Reports() {
                   { name: 'Concluídos', value: completedLoans, color: '#3B82F6' },
                   { name: 'Inadimplentes', value: defaultedLoans, color: '#EF4444' }
                 ].map((entry, index) => (
-                  <Bar key={`cell-${index}`} fill={entry.color} />
+                  <Bar key={`cell-${index}`} dataKey="value" fill={entry.color} />
                 ))}
               </Bar>
             </BarChart>
@@ -318,7 +344,7 @@ export default function Reports() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value), 'Valor']} />
+                <Tooltip formatter={(value: any) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value)), 'Valor']} />
                 <Legend />
                 <Line 
                   type="monotone" 

@@ -1,10 +1,27 @@
+import dayjs from 'dayjs';
+  // Função para saber se um empréstimo está inadimplente (vencido)
+  function isOverdue(loan: any): boolean {
+    if (loan.status !== 'active') return false;
+    if (loan.paymentType === 'diario') {
+      const start = loan.startDate ? dayjs(loan.startDate) : dayjs(loan.createdAt);
+      const hoje = dayjs();
+      const diasDecorridos = hoje.diff(start, 'day') + 1;
+      const pagos = loan.payments ? loan.payments.length : 0;
+      const total = loan.installments || loan.numberOfInstallments || 0;
+      if (diasDecorridos > 0 && pagos === 0) return true;
+      return pagos < Math.min(diasDecorridos, total);
+    } else {
+      const hoje = dayjs();
+      return !!loan.dueDate && hoje.isAfter(dayjs(loan.dueDate));
+    }
+  }
 import { useState } from 'react';
 import { Plus, Search, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLocalData } from '../contexts/SupabaseContext';
 
 export default function Loans() {
-  const { loans, clients, deleteLoanCascade } = useLocalData();
+  const { loans, clients, payments, deleteLoanCascade } = useLocalData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedLoans, setSelectedLoans] = useState<string[]>([]);
@@ -15,16 +32,30 @@ export default function Loans() {
     return client ? client.name : 'Cliente desconhecido';
   };
 
+  // Adiciona os pagamentos em cada loan
+  const loansWithPayments = loans.map(loan => ({
+    ...loan,
+    payments: payments.filter(p => p.loanId === loan.id)
+  }));
+
   // Filter loans by search term and status
-  const filteredLoans = loans.filter(loan => {
+  const filteredLoans = loansWithPayments.filter(loan => {
     const clientName = getClientName(loan.clientId).toLowerCase();
     const matchesSearch = clientName.includes(searchTerm.toLowerCase());
-    
     if (filterStatus === 'all') {
       return matchesSearch;
     }
-    
-    return matchesSearch && loan.status === filterStatus;
+    if (filterStatus === 'active') {
+      return matchesSearch && loan.status === 'active';
+    }
+    if (filterStatus === 'completed') {
+      return matchesSearch && loan.status === 'completed';
+    }
+    if (filterStatus === 'defaulted' || filterStatus === 'inadimplente' || filterStatus === 'inadimplentes') {
+      // Considera inadimplente se status for 'defaulted'
+      return matchesSearch && loan.status === 'defaulted';
+    }
+    return matchesSearch;
   });
 
   // Handle loan deletion
@@ -144,6 +175,9 @@ export default function Loans() {
                   Data Início
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Modalidade
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -188,13 +222,19 @@ export default function Loans() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {loan.paymentType === 'diario' ? 'Diário' : loan.paymentType === 'installments' ? 'Parcelado' : loan.paymentType === 'interest_only' ? 'Somente Juros' : 'Outro'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${loan.status === 'active' ? 'bg-green-100 text-green-800' : 
-                        loan.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
-                        'bg-red-100 text-red-800'}`}
+                      ${loan.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                        isOverdue(loan) || loan.status === 'defaulted' ? 'bg-red-100 text-red-800' : 
+                        loan.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
                     >
-                      {loan.status === 'active' ? 'Ativo' : 
-                        loan.status === 'completed' ? 'Concluído' : 'Inadimplente'}
+                      {loan.status === 'completed' ? 'Concluído' : 
+                        isOverdue(loan) || loan.status === 'defaulted' ? 'Inadimplente' : 
+                        loan.status === 'active' ? 'Ativo' : ''}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
